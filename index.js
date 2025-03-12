@@ -1,6 +1,6 @@
 const express = require('express');
 const {exec} = require('child_process');
-
+const {spawn} = require('child_process');
 
 const app = express();
 
@@ -25,26 +25,63 @@ app.get('/', (req, res) => {
     // });
 });
 
-app.get('/runHifrog', (req, res) => {
-    const fileName = req.query.fileName;
-    exec('docker exec 488859e4bce4 /home/hifrog /home/'+fileName, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
-        if (error) {
-            if(error.message.includes('Error opening file')){
-                return res.status(404).send(`Error: ${error.message}`);
-            }
-            return res.status(500).send(`Error: ${error.message}`);
-        }
-        let output = '';
-        if (stderr) {
-        output += `Stderr: ${stderr}\n\n`;
-        }
-        if (stdout) {
-        output += stdout;
-        }
-        res.send(`${output}`);
-    });
+// app.get('/runHifrog', (req, res) => {
+//     const fileName = req.query.fileName;
+//     exec('docker exec 488859e4bce4 /home/hifrog /home/'+fileName, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
+//         if (error) {
+//             if(error.message.includes('Error opening file')){
+//                 return res.status(404).send(`Error: ${error.message}`);
+//             }
+//             return res.status(500).send(`Error: ${error.message}`);
+//         }
+//         let output = '';
+//         if (stderr) {
+//         output += `Stderr: ${stderr}\n\n`;
+//         }
+//         if (stdout) {
+//         output += stdout;
+//         }
+//         res.send(`${output}`);
+//     });
     
-})
+// })
+
+app.get('/runHifrog', (req, res) => {
+    const { fileName, logic, claim, unwind } = req.query;
+    const hifrog = spawn('docker', [
+        'exec',
+        '488859e4bce4',
+        '/home/hifrog',
+        `/home/${fileName}`,
+        '-logic', logic,
+        '-claim', claim,
+        '-unwind', unwind
+    ]);
+
+    let output = '';
+
+    // Capture stdout
+    hifrog.stdout.on('data', (data) => {
+        output += data.toString();
+    });
+
+    // Capture stderr, but don't immediately send 500
+    hifrog.stderr.on('data', (data) => {
+        console.error(data.toString());
+        output += data.toString(); // Optional: include stderr in response
+    });
+
+    hifrog.on('close', (code) => {
+        res.setHeader('Content-Type', 'text/plain');
+
+        if (code !== 0) {
+            res.status(500).end(`Process exited with code ${code}\n${output}`);
+        } else {
+            res.end(output);
+        }
+    });
+});
+
 
 app.get('/deleteSummary', (req, res) => {
     exec('docker exec 488859e4bce4 rm __summaries', (error, stdout, stderr) => {
