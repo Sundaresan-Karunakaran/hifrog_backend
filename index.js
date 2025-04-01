@@ -52,7 +52,7 @@ app.get('/runHifrog', (req, res) => {
         'exec',
         '488859e4bce4',
         '/home/hifrog',
-        `/home/${fileName}`,
+        `/home/example/hifrogDemo/${fileName}`,
         '-logic', logic,
         '-claim', claim,
         '-unwind', unwind
