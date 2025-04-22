@@ -1,9 +1,10 @@
 const express = require('express');
 const {exec} = require('child_process');
 const {spawn} = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
-
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     next();
@@ -45,6 +46,19 @@ app.get('/', (req, res) => {
 //     });
     
 // })
+
+app.get('/getFiles', (req, res) => {
+    exec('docker exec 488859e4bce4 ls /home/example/hifrogDemo/', (error, stdout, stderr) => {
+        if (error) {
+            console.error("Error reading directory:", error.message);
+            return res.status(500).json({ error: "Failed to read directory inside Docker" });
+        }
+
+        // stdout is a string with newline-separated filenames
+        const files = stdout.split("\n").filter(f => f.endsWith(".c"));
+        res.json(files);
+    });
+});
 
 app.get('/runHifrog', (req, res) => {
     const { fileName, logic, claim, unwind } = req.query;
